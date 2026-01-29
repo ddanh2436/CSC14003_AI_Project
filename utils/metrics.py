@@ -1,146 +1,101 @@
 import numpy as np
 import time
-import tracemalloc  # Thư viện chuẩn của Python để đo bộ nhớ (RAM)
-import matplotlib.pyplot as plt # Để vẽ biểu đồ Scalability
+import tracemalloc
+import matplotlib.pyplot as plt
 
 def run_experiment(optimizer_class, problem, n_runs=30, **kwargs):
     """
-    Chạy thuật toán n_runs lần để lấy số liệu thống kê (Robustness).
-    
-    Args:
-        optimizer_class: Tên Class thuật toán (VD: HillClimbing) - KHÔNG PHẢI instance
-        problem: Bài toán cần giải (Object đã khởi tạo)
-        n_runs: Số lần chạy thử nghiệm (Đồ án yêu cầu 30)
-        **kwargs: Các tham số của thuật toán (max_iter, step_size...)
-        
-    Returns:
-        dict: Chứa các chỉ số thống kê (mean, std, best, worst, avg_time)
+    Chạy thực nghiệm và in báo cáo dạng rút gọn (One-line summary).
     """
     fitness_results = []
     time_results = []
     
-    print(f"\n📊 Đang chạy thực nghiệm {n_runs} lần cho {optimizer_class.__name__}...")
+    # In thông báo đang chạy (dùng end="" để không xuống dòng)
+    print(f"⏳ Running {optimizer_class.__name__:<16} ({n_runs} runs)... ", end="", flush=True)
     
     for i in range(n_runs):
-        # 1. Khởi tạo thuật toán mới hoàn toàn
+        # Khởi tạo và chạy thuật toán
         optimizer = optimizer_class(problem, **kwargs)
-        
-        # 2. Chạy giải
         _, best_fitness, _ = optimizer.solve()
         
-        # 3. Lưu kết quả
         fitness_results.append(best_fitness)
         time_results.append(optimizer.run_time)
-        
-        # In dấu chấm để biết chương trình đang chạy
-        if (i+1) % 5 == 0:
-            print(f"   Run {i+1}/{n_runs} complete...", end="\r")
 
-    print("\n   ✅ Hoàn tất thực nghiệm!")
+    # Tính toán thống kê
+    mean_fit = np.mean(fitness_results)
+    std_fit = np.std(fitness_results)
+    best_fit = np.min(fitness_results)
+    avg_time = np.mean(time_results)
     
-    # 4. Tính toán thống kê
-    stats = {
+    # In kết quả dạng ONE-LINE (Gọn gàng)
+    # Ví dụ: ✅ HillClimbing | Fit: 2.50 ± 1.20 | Best: 0.05 | Time: 0.001s
+    print(f"Done!")
+    print(f"   ✅ {optimizer_class.__name__:<16} | Fit: {mean_fit:10.4f} ± {std_fit:.4f} | Best: {best_fit:10.4f} | Time: {avg_time:.4f}s")
+    
+    return {
         "algorithm": optimizer_class.__name__,
-        "problem": problem.name,
-        "mean_fitness": np.mean(fitness_results),
-        "std_fitness": np.std(fitness_results), # Độ lệch chuẩn (Robustness)
-        "best_fitness": np.min(fitness_results),
-        "worst_fitness": np.max(fitness_results),
-        "avg_time": np.mean(time_results)
+        "mean_fitness": mean_fit,
+        "std_fitness": std_fit,
+        "best_fitness": best_fit,
+        "avg_time": avg_time
     }
-    
-    # 5. In báo cáo
-    print("-" * 50)
-    print(f"REPORT: {stats['algorithm']} on {stats['problem']}")
-    print("-" * 50)
-    print(f"Runs          : {n_runs}")
-    print(f"Fitness (Mean): {stats['mean_fitness']:.6f}")
-    print(f"Fitness (Std) : ± {stats['std_fitness']:.6f} (Độ ổn định)")
-    print(f"Best Found    : {stats['best_fitness']:.6f}")
-    print(f"Avg Time      : {stats['avg_time']:.4f} seconds")
-    print("-" * 50)
-    
-    return stats
 
 def measure_memory(optimizer_class, problem, **kwargs):
-    """
-    Đo lượng RAM tiêu tốn (Space Complexity).
-    Sử dụng thư viện tracemalloc để theo dõi cấp phát bộ nhớ.
-    """
-    print(f"💾 Đang đo bộ nhớ cho {optimizer_class.__name__}...", end="")
+    """Đo bộ nhớ RAM tiêu thụ"""
+    tracemalloc.start()
     
-    tracemalloc.start() # Bắt đầu theo dõi
-    
-    # Chạy thuật toán 1 lần
     opt = optimizer_class(problem, **kwargs)
     opt.solve()
     
-    # Lấy thông số bộ nhớ: current (hiện tại), peak (đỉnh điểm)
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop() # Dừng theo dõi
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     
-    # Đổi từ Byte sang MB
     peak_mb = peak / (1024 * 1024)
-    print(f" Done! Peak Memory: {peak_mb:.4f} MB")
-    
+    print(f"   💾 Memory ({optimizer_class.__name__}): {peak_mb:.4f} MB")
     return peak_mb
 
-def run_scalability_test(optimizer_class, problem_class, dims=[10, 30, 50, 100], **kwargs):
+def run_scalability_test(optimizer_classes, problem_class, dims=[10, 30, 50, 100], **kwargs):
     """
-    Test khả năng mở rộng (Scalability): 
-    Chạy thuật toán với kích thước bài toán (dimension) tăng dần.
-    
+    Test khả năng mở rộng (Scalability) cho NHIỀU thuật toán cùng lúc.
     Args:
-        optimizer_class: Class thuật toán (VD: HillClimbing)
-        problem_class: Class bài toán (VD: Sphere) - Lưu ý truyền Class, không phải Object
-        dims: Danh sách các số chiều cần test
-        **kwargs: Tham số thuật toán
+        optimizer_classes: Danh sách Class thuật toán (VD: [HillClimbing, GeneticAlgorithm])
+        problem_class: Class bài toán
+        dims: Các chiều cần test
     """
-    times = []
-    fitnesses = []
+    print(f"\n📈 Running Scalability Comparison...")
     
-    print(f"\n📈 Đang chạy kiểm tra Scalability (Mở rộng) cho {optimizer_class.__name__}...")
-    
-    for d in dims:
-        print(f"   Testing dimension: {d}...", end="\r")
-        
-        # Tạo bài toán mới với số chiều d
-        prob = problem_class(dim=d)
-        
-        # Chạy thực nghiệm (chạy 5 lần mỗi mức để lấy trung bình thời gian)
-        # Tắt in log chi tiết trong run_experiment để đỡ rối màn hình
-        stats = run_experiment(optimizer_class, prob, n_runs=5, **kwargs)
-        
-        times.append(stats['avg_time'])
-        fitnesses.append(stats['mean_fitness'])
-    
-    print(f"\n   ✅ Hoàn tất Scalability Test trên các chiều: {dims}")
-
-    # --- Vẽ biểu đồ Time Scalability ---
     plt.figure(figsize=(10, 6))
-    plt.plot(dims, times, marker='o', linestyle='-', color='purple', linewidth=2)
     
-    plt.title(f"Scalability Analysis: {optimizer_class.__name__} on {problem_class.__name__}")
+    # Duyệt qua từng thuật toán trong danh sách
+    for opt_class in optimizer_classes:
+        times = []
+        print(f"   Testing {opt_class.__name__:<16} | Dims: {dims} ... ", end="", flush=True)
+        
+        for d in dims:
+            prob = problem_class(dim=d)
+            # Chạy ngầm 3 lần lấy trung bình time cho chính xác
+            start = time.time()
+            n_avg = 3
+            for _ in range(n_avg):
+                opt = opt_class(prob, **kwargs)
+                opt.solve()
+            
+            avg_time = (time.time() - start) / n_avg
+            times.append(avg_time)
+        
+        print("Done!")
+        
+        # Vẽ đường cho thuật toán này
+        plt.plot(dims, times, marker='o', linewidth=2, label=opt_class.__name__)
+        
+        # Hiển thị số liệu tại điểm cuối cùng
+        plt.annotate(f"{times[-1]:.4f}s", (dims[-1], times[-1]), 
+                     xytext=(5, 0), textcoords="offset points", fontsize=8)
+
+    # Trang trí biểu đồ
+    plt.title(f"Scalability Comparison: Time vs Dimension")
     plt.xlabel("Problem Dimension (Size)")
     plt.ylabel("Execution Time (seconds)")
-    plt.grid(True, linestyle='--', alpha=0.7)
-    
-    # Hiển thị giá trị cụ thể lên từng điểm
-    for i, txt in enumerate(times):
-        # Nếu thời gian < 0.01 giây thì hiển thị 5 số lẻ, ngược lại hiển thị 2 số lẻ
-        if txt < 0.01:
-            label = f"{txt:.5f}s"
-        else:
-            label = f"{txt:.2f}s"
-            
-        plt.annotate(
-            label, 
-            (dims[i], times[i]), 
-            textcoords="offset points", 
-            xytext=(0,10), 
-            ha='center',
-            fontsize=9,
-            color='blue'
-        )
-
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend() # Hiển thị chú thích
     plt.show()
