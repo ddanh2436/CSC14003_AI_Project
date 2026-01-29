@@ -6,6 +6,7 @@ from problems.discrete import TSP # (File này chúng ta sẽ tạo ở bước 
 from algorithms.classical.hill_climbing import HillClimbing
 from algorithms.evolutionary.ga import GeneticAlgorithm
 from algorithms.physics.simulated_annealing import SimulatedAnnealing
+from algorithms.swarm import PSO, ABC, FA, CS, ACO
 # from algorithms.classical.hill_climbing_tsp import HillClimbingTSP (Sẽ dùng cho bài toán rời rạc)
 
 # Import công cụ chạy
