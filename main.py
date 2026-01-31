@@ -9,6 +9,8 @@ from algorithms.physics.simulated_annealing import SimulatedAnnealing
 from algorithms.swarm import PSO, ABC, FA, CS, ACO
 # from algorithms.classical.hill_climbing_tsp import HillClimbingTSP (Sẽ dùng cho bài toán rời rạc)
 
+from algorithms.physics.gsa import GravitationalSearchAlgorithm
+from algorithms.physics.hs import HarmonySearch
 # Import công cụ chạy
 from utils.experiments import run_suite
 
@@ -41,6 +43,15 @@ def main():
         {
             'class': GeneticAlgorithm,
             'params': {'max_iter': 500, 'pop_size': 50, 'mutation_rate': 0.1}
+        },
+        {
+            'class': GravitationalSearchAlgorithm,
+            'params': {'max_iter': 500, 'pop_size': 40, 'G0': 100, 'alpha': 20}
+        },
+        # Thêm Harmony Search
+        {
+            'class': HarmonySearch,
+            'params': {'max_iter': 500, 'pop_size': 20, 'hmcr': 0.95, 'par': 0.3}
         }
     ]
     
