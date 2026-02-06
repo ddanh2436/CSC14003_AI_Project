@@ -79,7 +79,7 @@ def main():
     discrete_algos = [
         {
             'class': HillClimbingTSP,
-            'params': {'max_iter': 1000}
+            'params': {'max_iter': 10     00}
         }
         # Sau này thêm GA_TSP, SA_TSP vào đây
     ]
