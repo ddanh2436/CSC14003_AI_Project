@@ -2,74 +2,76 @@ import numpy as np
 from algorithms.optimizer import Optimizer
 
 class ArtificialBeeColony(Optimizer):
-    def __init__(self, problem, pop_size=50, limit=50, **kwargs):
-        # pop_size trong ABC thường là tổng số ong (Employed + Onlooker)
-        # Số lượng nguồn thức ăn (SN) = pop_size / 2
+    def __init__(self, problem, pop_size=50, limit=100, **kwargs):
         super().__init__(problem, pop_size=pop_size, **kwargs)
         self.n_food = pop_size // 2 
         self.limit = limit
 
     def _evolve(self):
         dim = self.problem.dim
-        lb = self.problem.bounds[:, 0]
-        ub = self.problem.bounds[:, 1]
+        lb, ub = self.problem.bounds[:, 0], self.problem.bounds[:, 1]
         
-        # Khởi tạo nguồn thức ăn (Employed bees ban đầu)
+        # 1. Khởi tạo
         pop = np.random.uniform(lb, ub, (self.n_food, dim))
         fitness = np.apply_along_axis(self.problem.fitness, 1, pop)
-        trials = np.zeros(self.n_food) # Đếm số lần không cải thiện
+        trials = np.zeros(self.n_food)
         
-        # Cập nhật Global Best
         best_idx = np.argmin(fitness)
         self.update_global_best(pop[best_idx], fitness[best_idx])
         self.save_history()
 
-        def mutate(i):
-            k = i
-            while k == i:
-                k = np.random.randint(0, self.n_food)
-            
-            phi = np.random.uniform(-1, 1, dim)
-            new_sol = pop[i] + phi * (pop[i] - pop[k])
-            new_sol = np.clip(new_sol, lb, ub)
-            new_fit = self.problem.fitness(new_sol)
-            
-            if new_fit < fitness[i]:
-                pop[i] = new_sol
-                fitness[i] = new_fit
-                trials[i] = 0
-            else:
-                trials[i] += 1
-
         for _ in range(self.max_iter):
-            # 1. Employed Bees Phase
-            for i in range(self.n_food):
-                mutate(i)
+            # --- GIAI ĐOẠN EMPLOYED BEES (Vectorized) ---
+            # Chọn k ngẫu nhiên cho mỗi i (k != i)
+            k_indices = np.array([np.random.choice(np.delete(np.arange(self.n_food), i)) for i in range(self.n_food)])
+            phi = np.random.uniform(-1, 1, (self.n_food, dim))
+            
+            # Tạo ứng viên mới cho toàn bộ quần thể
+            new_pop = np.clip(pop + phi * (pop - pop[k_indices]), lb, ub)
+            new_fitness = np.apply_along_axis(self.problem.fitness, 1, new_pop)
+            
+            # Cập nhật bằng Greedy Selection (Masking)
+            better_mask = new_fitness < fitness
+            pop[better_mask] = new_pop[better_mask]
+            fitness[better_mask] = new_fitness[better_mask]
+            trials[better_mask] = 0
+            trials[~better_mask] += 1
 
-            # 2. Onlooker Bees Phase
-            # Tính xác suất (Roulette Wheel)
-            # Chuyển fitness (min problem) sang xác suất: fit càng nhỏ prob càng to
-            fit_inv = 1.0 / (1.0 + fitness + abs(np.min(fitness))) 
+            # --- GIAI ĐOẠN ONLOOKER BEES (Vectorized) ---
+            # Tính xác suất dựa trên fitness (càng nhỏ càng tốt)
+            fit_inv = 1.0 / (1.0 + fitness + np.abs(np.min(fitness)))
             probs = fit_inv / np.sum(fit_inv)
             
-            for _ in range(self.n_food):
-                # Chọn nguồn thức ăn để khai thác
-                i = np.searchsorted(np.cumsum(probs), np.random.rand())
-                i = min(i, self.n_food - 1)
-                mutate(i)
+            # Chọn n_food nguồn thức ăn dựa trên xác suất (Onlookers chọn)
+            selected_idx = np.random.choice(np.arange(self.n_food), size=self.n_food, p=probs)
+            
+            # Lại chọn k ngẫu nhiên cho các nguồn đã chọn
+            k_indices_onlooker = np.array([np.random.choice(np.delete(np.arange(self.n_food), i)) for i in selected_idx])
+            phi_onlooker = np.random.uniform(-1, 1, (self.n_food, dim))
+            
+            new_pop_on = np.clip(pop[selected_idx] + phi_onlooker * (pop[selected_idx] - pop[k_indices_onlooker]), lb, ub)
+            new_fit_on = np.apply_along_axis(self.problem.fitness, 1, new_pop_on)
+            
+            # Cập nhật cho Onlooker
+            for idx, i_source in enumerate(selected_idx):
+                if new_fit_on[idx] < fitness[i_source]:
+                    pop[i_source] = new_pop_on[idx]
+                    fitness[i_source] = new_fit_on[idx]
+                    trials[i_source] = 0
+                else:
+                    trials[i_source] += 1
 
-            # 3. Scout Bees Phase
-            # Tìm nguồn thức ăn đã cạn kiệt (vượt quá limit)
-            max_trials_idx = np.argmax(trials)
-            if trials[max_trials_idx] > self.limit:
-                pop[max_trials_idx] = np.random.uniform(lb, ub, dim)
-                fitness[max_trials_idx] = self.problem.fitness(pop[max_trials_idx])
-                trials[max_trials_idx] = 0
+            # --- GIAI ĐOẠN SCOUT BEES ---
+            scout_idx = np.where(trials > self.limit)[0]
+            if len(scout_idx) > 0:
+                pop[scout_idx] = np.random.uniform(lb, ub, (len(scout_idx), dim))
+                fitness[scout_idx] = np.apply_along_axis(self.problem.fitness, 1, pop[scout_idx])
+                trials[scout_idx] = 0
 
-            # Cập nhật kết quả tốt nhất vòng này
-            curr_best_idx = np.argmin(fitness)
-            if fitness[curr_best_idx] < self.global_best_fitness:
-                self.update_global_best(pop[curr_best_idx], fitness[curr_best_idx])
+            # Cập nhật Best toàn cục
+            min_idx = np.argmin(fitness)
+            if fitness[min_idx] < self.global_best_fitness:
+                self.update_global_best(pop[min_idx], fitness[min_idx])
             
             self.save_history()
 
