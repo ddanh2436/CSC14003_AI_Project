@@ -21,7 +21,7 @@ from algorithms.physics.hs import HarmonySearch
 
 # Import thuật toán Swarm Intelligence
 from algorithms.swarm import PSO, ABC, FA, CS, ACO
-
+from algorithms.human_based.tlbo import TLBO
 # Import công cụ thực nghiệm và trực quan hóa
 from utils.experiments import run_suite
 from utils.metrics import run_scalability_test
@@ -72,7 +72,8 @@ def main():
         {'class': EvolutionStrategy, 'params': {'max_iter': 500, 'pop_size': 20}},
         {'class': PSO, 'params': {'max_iter': 500, 'pop_size': 30}},
         {'class': ABC, 'params': {'max_iter': 500, 'pop_size': 40}},
-        {'class': CS, 'params': {'max_iter': 500, 'pop_size': 25}}
+        {'class': CS, 'params': {'max_iter': 500, 'pop_size': 25}},
+        {'class': TLBO, 'params': {'max_iter': 500, 'pop_size': 40}}
     ]
     
     # Chạy thực nghiệm lấy thống kê Robustness (n_runs=10)
