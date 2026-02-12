@@ -25,7 +25,7 @@ class UniformCostSearch(Optimizer):
                     heapq.heappush(open_set, (new_g, neighbor))
                 self.save_history()
         return None, float('inf')
-    def _reconstuct_path(self, parent, goal):
+    def _reconstruct_path(self, parent, goal):
         path = []   
         curr = self.problem.goal
         while curr is not None:

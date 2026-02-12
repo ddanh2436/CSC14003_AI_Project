@@ -19,7 +19,7 @@ class AStarSearch(Optimizer):
         heapq.heappush(open_set, (0, start))
         
         # Save the route
-        came_from = []
+        came_from = {}
         
         # The cost from start to current node 
         g_score = {start: 0}
