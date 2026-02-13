@@ -1,4 +1,0 @@
-\babel@toc {english}{}\relax 
-\contentsline {section}{\fontsize {15pt}{18pt}\selectfont I. INTRODUCTION}{3}{section*.3}%
-\contentsline {subsection}{1.1. Problem Statement}{3}{section*.4}%
-\contentsline {subsubsection}{1.1.1. Problem definition}{3}{section*.5}%
