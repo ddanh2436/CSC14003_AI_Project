@@ -33,48 +33,78 @@ def plot_3d_surface(problem, title="Objective Function Landscape"):
     plt.show()
 
 # --- CẬP NHẬT MỚI: Hỗ trợ so sánh nhiều thuật toán ---
-def plot_convergence(histories_dict, title="Convergence Comparison"):
-    """
-    Vẽ biểu đồ so sánh sự hội tụ (Đã tối ưu giao diện: Đường mượt cho Swarm, Chấm tròn cho Classical).
-    """
+def plot_convergence(histories_dict, title="Convergence Comparison", times_dict=None):
     plt.figure(figsize=(10, 6))
     
-    all_values = []
-    for name, history in histories_dict.items():
-        # Lọc bỏ các giá trị Infinity (Vô cực)
-        valid_history = [val for val in history if val != float('inf')]
-        
-        if valid_history:
-            # --- LOGIC VẼ ĐẸP Ở ĐÂY ---
-            if len(valid_history) == 1:
-                # Dành cho BFS/A* (chỉ có 1 điểm): Vẽ chấm tròn to, không vẽ đường
-                plt.plot(valid_history, label=name, marker='o', markersize=8, linewidth=0)
-            else:
-                # Dành cho Metaheuristic (nhiều điểm): Vẽ đường mượt mà, KHÔNG có chấm
-                plt.plot(valid_history, label=name, linewidth=2)
-                
-            all_values.extend(valid_history)
+    # 1. KIỂM TRA LOẠI BIỂU ĐỒ
+    is_single_point = True
+    for history in histories_dict.values():
+        if len(history) > 2:
+            is_single_point = False
+            break
             
-    if not all_values:
-        print(f"⚠️ Không có dữ liệu hợp lệ (toàn vô cực) để vẽ biểu đồ cho {title}")
-        plt.close()
-        return
+    # 2. VẼ BIỂU ĐỒ CỘT (Cho BFS, A*)
+    if is_single_point:
+        names = list(histories_dict.keys())
+        values = []
         
-    plt.title(title, fontsize=14, fontweight='bold')
-    plt.xlabel("Iterations / Updates (Vòng lặp)")
-    
-    # Tự động chọn thang đo trục Y
-    if min(all_values) > 0:
-        plt.yscale('log')
-        plt.ylabel("Best Fitness (Log Scale)")
+        for name in names:
+            final_cost = histories_dict[name][-1]
+            if final_cost == float('inf'):
+                values.append(0)
+            else:
+                values.append(final_cost)
+                
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'][:len(names)]
+        bars = plt.bar(names, values, color=colors, alpha=0.8)
+        
+        plt.ylabel("Path Cost (Chi phí)")
+        plt.title(title + "\n(Lower is Better)", fontsize=14, fontweight='bold')
+        
+        # Ghi điểm số và THỜI GIAN lên đỉnh cột
+        for i, bar in enumerate(bars):
+            yval = bar.get_height()
+            algo_name = names[i]
+            
+            # Lấy chuỗi thời gian nếu có dữ liệu
+            time_str = ""
+            if times_dict and algo_name in times_dict:
+                time_str = f"\nTime: {times_dict[algo_name]:.5f}s"
+
+            if yval == 0:
+                plt.text(bar.get_x() + bar.get_width()/2, 0.1, f'Failed{time_str}', ha='center', va='bottom', color='red', fontweight='bold')
+            else:
+                plt.text(bar.get_x() + bar.get_width()/2, yval, f'Cost: {yval:.2f}{time_str}', ha='center', va='bottom', fontweight='bold', fontsize=11)
+
+    # 3. VẼ ĐƯỜNG CONG (Cho GA, PSO, SA...)
     else:
-        plt.yscale('linear')
-        plt.ylabel("Best Fitness")
+        all_values = []
+        for name, history in histories_dict.items():
+            valid_history = [val for val in history if val != float('inf')]
+            if valid_history:
+                plt.plot(valid_history, label=name, linewidth=2)
+                all_values.extend(valid_history)
+                
+        if not all_values:
+            plt.close()
+            return
+            
+        plt.title(title, fontsize=14, fontweight='bold')
+        plt.xlabel("Iterations / Updates (Vòng lặp)")
+        
+        if min(all_values) > 0:
+            plt.yscale('log')
+            plt.ylabel("Best Fitness (Log Scale)")
+        else:
+            plt.yscale('linear')
+            plt.ylabel("Best Fitness")
+        
+        plt.grid(True, linestyle='--', alpha=0.7, which="both")
+        plt.legend(fontsize=11)
     
-    plt.grid(True, linestyle='--', alpha=0.7, which="both")
-    plt.legend()
+    plt.tight_layout()
     plt.show()
-    
+
 def plot_empire_map(empires, empire_costs, problem, iteration, title="World Order Map"):
     """
     Vẽ bản đồ lãnh thổ Đế quốc (Voronoi) CHỈ DÙNG NUMPY.

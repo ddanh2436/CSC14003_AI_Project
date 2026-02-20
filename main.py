@@ -6,6 +6,7 @@ from problems.discrete import TSP, Knapsack, ShortestPath
 
 from algorithms.classical.hill_climbing import HillClimbing
 from algorithms.classical.hill_climbing_tsp import HillClimbingTSP
+from algorithms.classical.hill_climbing_knapsack import HillClimbingKnapsack
 from algorithms.classical.bfs import BreadthFirstSearch
 from algorithms.classical.a_star import AStarSearch
 
@@ -18,6 +19,7 @@ from algorithms.evolutionary.es import EvolutionStrategy
 # Nhóm Physics-based
 from algorithms.physics.simulated_annealing import SimulatedAnnealing
 from algorithms.physics.sa_tsp import SimulatedAnnealingTSP  # Thuật toán mới cho TSP
+from algorithms.physics.sa_knapsack import SimulatedAnnealingKnapsack #Thuật toán mới cho Knapsack
 from algorithms.physics.gsa import GravitationalSearchAlgorithm
 from algorithms.physics.hs import HarmonySearch
 
@@ -39,7 +41,7 @@ except ImportError:
     HAS_ADVANCED_TOOLS = False
 
 def main():
-    # ==========================================
+   # ==========================================
     # SCENARIO 0: TRỰC QUAN HÓA ĐỊA HÌNH 3D (2D)
     # ==========================================
     print("\n" + "="*60)
@@ -81,7 +83,7 @@ def main():
     
     # Chạy thực nghiệm lấy thống kê Robustness (n_runs=10)
     run_suite(continuous_problems, continuous_algos, n_runs=10)
-
+    
     # ==========================================
     # SCENARIO 2: BÀI TOÁN RỜI RẠC (DISCRETE)
     # ==========================================
@@ -118,7 +120,14 @@ def main():
 
     knapsack_problems = [Knapsack(n_items=50)]
     knapsack_algos = [
-        {'class': GeneticAlgorithm, 'params': {'max_iter': 500, 'pop_size': 50}}
+        # Baseline cổ điển
+        {'class': HillClimbingKnapsack, 'params': {'max_iter': 500}},
+        # Cổ điển có thể thoát bẫy
+        {'class': SimulatedAnnealingKnapsack, 'params': {'max_iter': 500, 'initial_temp': 1000}},
+        # Tiến hóa (Hoạt động tốt nhất trên chuỗi nhị phân)
+        {'class': GeneticAlgorithm, 'params': {'max_iter': 500, 'pop_size': 50}},
+        # Swarm (Ong mật - dùng cơ chế làm tròn ngầm)
+        {'class': ABC, 'params': {'max_iter': 500, 'pop_size': 40}}
     ]
     run_suite(knapsack_problems, knapsack_algos, n_runs=5)
 
@@ -127,7 +136,7 @@ def main():
     print("SCENARIO 2.3: SHORTEST PATH (Graph Traversal)")
     print("-"*60)
 
-    graph_problems = [ShortestPath(n_nodes=50, edge_prob=0.2)]
+    graph_problems = [ShortestPath(n_nodes=1000, edge_prob=0.2)]
     graph_algos = [
         {'class': BreadthFirstSearch, 'params': {}},
         {'class': AStarSearch, 'params': {}}

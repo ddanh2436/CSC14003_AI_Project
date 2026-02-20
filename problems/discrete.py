@@ -88,6 +88,9 @@ class Knapsack(DiscreteProblem):
         super().__init__(name=f"Knapsack ({n_items} items)")
         self.n_items = n_items
         self.dim = n_items # Số chiều = số món đồ (0 hoặc 1)
+
+        # BỔ SUNG DÒNG NÀY: Để các thuật toán liên tục (ABC, PSO) biết giới hạn sinh số ngẫu nhiên từ 0 đến 1
+        self.bounds = np.array([[0.0, 1.0]] * n_items)
         
         np.random.seed(seed)
         # Random trọng lượng (1-10) và giá trị (10-100)
