@@ -2,92 +2,91 @@ import numpy as np
 from algorithms.optimizer import Optimizer
 
 class GeneticAlgorithm(Optimizer):
+    """
+    Genetic Algorithm (GA) - Tối ưu hóa cho không gian liên tục (Continuous).
+    Sử dụng:
+    - Chọn lọc: Tournament Selection.
+    - Lai ghép: Uniform Crossover.
+    - Đột biến: Gaussian Mutation.
+    - Chiến lược: Simple GA kết hợp Elitism (Giữ lại tinh hoa).
+    """
     def __init__(self, problem, pop_size=50, mutation_rate=0.1, crossover_rate=0.9, **kwargs):
         super().__init__(problem, pop_size=pop_size, **kwargs)
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
 
-    def _initialize_population(self):
-        """Tự động phát hiện kiểu bài toán để khởi tạo"""
-        # 1. Nếu là TSP -> Sinh hoán vị
-        if hasattr(self.problem, 'n_cities'):
-            pop = []
-            for _ in range(self.pop_size):
-                pop.append(np.random.permutation(self.problem.n_cities))
-            return np.array(pop)
-        
-        # 2. Nếu là Knapsack -> Sinh nhị phân 0/1
-        elif hasattr(self.problem, 'n_items'):
-            return np.random.randint(0, 2, (self.pop_size, self.problem.dim))
-            
-        # 3. Mặc định: Continuous -> Sinh số thực trong bounds
-        else:
-            return np.random.uniform(
-                self.problem.bounds[:, 0], self.problem.bounds[:, 1], 
-                (self.pop_size, self.problem.dim)
-            )
-
     def _evolve(self):
-        # 1. Khởi tạo quần thể thông minh
-        pop = self._initialize_population()
+        dim = self.problem.dim
         
-        # Tính fitness ban đầu
-        fitness = np.array([self.problem.fitness(ind) for ind in pop])
+        # Xử lý linh hoạt: Nếu bài toán không có bounds (như Knapsack), mặc định là [0, 1]
+        if self.problem.bounds is not None:
+            lb = self.problem.bounds[:, 0]
+            ub = self.problem.bounds[:, 1]
+        else:
+            lb = np.zeros(dim)
+            ub = np.ones(dim)
+
+        # 1. Khởi tạo quần thể ngẫu nhiên
+        pop = np.random.uniform(lb, ub, (self.pop_size, dim))
+        fitness = np.apply_along_axis(self.problem.fitness, 1, pop)
         
-        # Cập nhật Global Best
+        # Cập nhật kết quả tốt nhất ban đầu
         best_idx = np.argmin(fitness)
         self.update_global_best(pop[best_idx], fitness[best_idx])
-        self.save_history()
+        self.save_history(pop) # Truyền pop để tính chỉ số đa dạng (Diversity)
 
         # 2. Vòng lặp tiến hóa
         for _ in range(self.max_iter):
-            # A. Selection (Tournament)
+            # --- A. SELECTION (Tournament) ---
             idx1 = np.random.randint(0, self.pop_size, self.pop_size)
             idx2 = np.random.randint(0, self.pop_size, self.pop_size)
-            mask = fitness[idx1] < fitness[idx2]
-            parents = pop[np.where(mask, idx1, idx2)].copy()
-
-            offspring = parents.copy()
             
-            # --- TRƯỜNG HỢP 1: TSP (Rời rạc - Hoán vị) ---
-            if hasattr(self.problem, 'n_cities'):
-                for i in range(self.pop_size):
-                    if np.random.rand() < self.mutation_rate:
-                        p1, p2 = np.random.choice(self.problem.n_cities, 2, replace=False)
-                        offspring[i][p1], offspring[i][p2] = offspring[i][p2], offspring[i][p1]
+            # Chọn cá thể có fitness tốt hơn (nhỏ hơn) làm cha mẹ
+            mask_tournament = fitness[idx1] < fitness[idx2]
+            parents = np.where(mask_tournament[:, np.newaxis], pop[idx1], pop[idx2])
 
-            # --- TRƯỜNG HỢP 2: KNAPSACK (Rời rạc - Nhị phân) ---
-            elif hasattr(self.problem, 'n_items'):
-                # Mutation: Đảo Bit (Flip Bit)
-                mask_mut = np.random.rand(self.pop_size, self.problem.dim) < self.mutation_rate
-                offspring[mask_mut] = 1 - offspring[mask_mut]
-
-            # --- TRƯỜNG HỢP 3: CONTINUOUS (Liên tục) ---
-            else:
-                # Crossover
-                parents2 = parents.copy()
-                np.random.shuffle(parents2)
-                cross_mask = np.random.rand(self.pop_size, self.problem.dim) < 0.5
-                perform_cross = np.random.rand(self.pop_size, 1) < self.crossover_rate
-                offspring = np.where(cross_mask & perform_cross, parents, parents2)
-                offspring = np.where(perform_cross, offspring, parents)
-                
-                # Mutation
-                mut_mask = np.random.rand(self.pop_size, self.problem.dim) < self.mutation_rate
-                noise = np.random.normal(0, 1.0, size=offspring.shape)
-                offspring[mut_mask] += noise[mut_mask]
-                offspring = np.clip(offspring, self.problem.bounds[:, 0], self.problem.bounds[:, 1])
-
-            # C. Đánh giá lại
-            offspring_fitness = np.array([self.problem.fitness(ind) for ind in offspring])
+            # --- B. CROSSOVER (Uniform) ---
+            parents_shuffled = parents.copy()
+            np.random.shuffle(parents_shuffled) # Trộn ngẫu nhiên để lai ghép
             
-            pop = offspring
-            fitness = offspring_fitness
+            # Mặt nạ lai ghép: Xác suất 50% lấy gen từ bố hoặc mẹ
+            cross_mask = np.random.rand(self.pop_size, dim) < 0.5
+            perform_cross = np.random.rand(self.pop_size, 1) < self.crossover_rate
             
+            offspring = np.where(cross_mask & perform_cross, parents, parents_shuffled)
+            offspring = np.where(perform_cross, offspring, parents)
+
+            # --- C. MUTATION (Gaussian) ---
+            mut_mask = np.random.rand(self.pop_size, dim) < self.mutation_rate
+            
+            # Nhiễu Gaussian với độ phân tán là 10% của không gian tìm kiếm
+            sigma = 0.1 * (ub - lb)
+            noise = np.random.normal(0, sigma, size=(self.pop_size, dim))
+            
+            offspring[mut_mask] += noise[mut_mask]
+            
+            # Cắt xén (Clip) để đảm bảo không có gen nào văng ra ngoài không gian
+            offspring = np.clip(offspring, lb, ub)
+
+            # --- D. ĐÁNH GIÁ LẠI & ELITISM ---
+            offspring_fitness = np.apply_along_axis(self.problem.fitness, 1, offspring)
+            
+            # Tìm cá thể xuất sắc nhất đời cha và cá thể kém nhất đời con
+            best_parent_idx = np.argmin(fitness)
+            worst_offspring_idx = np.argmax(offspring_fitness)
+            
+            pop = offspring.copy()
+            fitness = offspring_fitness.copy()
+            
+            # Elitism: Đảm bảo cá thể tốt nhất đời trước không bị mất đi do lai/đột biến
+            pop[worst_offspring_idx] = parents[best_parent_idx]
+            fitness[worst_offspring_idx] = self.problem.fitness(parents[best_parent_idx])
+            
+            # Cập nhật kết quả tốt nhất toàn cục
             curr_best_idx = np.argmin(fitness)
             if fitness[curr_best_idx] < self.global_best_fitness:
                 self.update_global_best(pop[curr_best_idx], fitness[curr_best_idx])
             
-            self.save_history()
+            self.save_history(pop)
 
         return self.global_best_solution, self.global_best_fitness

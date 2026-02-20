@@ -101,23 +101,30 @@ class Knapsack(DiscreteProblem):
             self.capacity = capacity
 
     def fitness(self, solution):
-        """
-        Input: Binary array [0, 1, 0, 1...] (1 là chọn, 0 là không)
-        Output: -TotalValue (Vì thuật toán tìm Min, nên ta đảo dấu Max Value)
-        """
-        # Làm tròn solution về 0 hoặc 1 (nếu thuật toán continuous chạy thử)
         selected = np.round(solution).astype(int)
         
         total_weight = np.sum(selected * self.weights)
-        total_value = np.sum(selected * self.values)
         
-        # Xử lý ràng buộc (Constraint Handling)
+        # --- GREEDY REPAIR TĂNG CƯỜNG ---
         if total_weight > self.capacity:
-            # Nếu rách túi: Phạt bằng cách trả về giá trị dương rất lớn
-            # Penalty = Overweight * 100
-            return 1000 + (total_weight - self.capacity) * 10 
-        
-        # Nếu hợp lệ: Trả về số âm của giá trị (để tìm Min)
+            # Tính tỷ lệ Giá trị / Trọng lượng
+            ratios = self.values / self.weights
+            
+            # Lấy index của các món đồ đang được chọn
+            selected_indices = np.where(selected == 1)[0]
+            
+            # Sắp xếp các món đồ ĐANG CHỌN theo tỷ lệ tăng dần (món "tồi" lên đầu)
+            sorted_by_ratio = sorted(selected_indices, key=lambda idx: ratios[idx])
+            
+            # Vứt đồ ra khỏi túi cho đến khi đủ cân
+            for idx in sorted_by_ratio:
+                selected[idx] = 0
+                total_weight -= self.weights[idx]
+                if total_weight <= self.capacity:
+                    break
+                    
+        # Tính lại value sau khi đã repair
+        total_value = np.sum(selected * self.values)
         return -total_value
 
 # ==========================================
