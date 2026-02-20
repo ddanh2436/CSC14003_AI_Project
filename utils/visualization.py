@@ -35,28 +35,44 @@ def plot_3d_surface(problem, title="Objective Function Landscape"):
 # --- CẬP NHẬT MỚI: Hỗ trợ so sánh nhiều thuật toán ---
 def plot_convergence(histories_dict, title="Convergence Comparison"):
     """
-    Vẽ biểu đồ so sánh nhiều thuật toán trên cùng 1 hình.
-    
-    Args:
-        histories_dict: Dictionary dạng {'Tên Thuật Toán': [list history], ...}
-        title: Tiêu đề biểu đồ
+    Vẽ biểu đồ so sánh sự hội tụ (Đã tối ưu giao diện: Đường mượt cho Swarm, Chấm tròn cho Classical).
     """
     plt.figure(figsize=(10, 6))
     
-    # Duyệt qua từng thuật toán trong dictionary để vẽ
+    all_values = []
     for name, history in histories_dict.items():
-        plt.plot(history, label=name, linewidth=2)
+        # Lọc bỏ các giá trị Infinity (Vô cực)
+        valid_history = [val for val in history if val != float('inf')]
+        
+        if valid_history:
+            # --- LOGIC VẼ ĐẸP Ở ĐÂY ---
+            if len(valid_history) == 1:
+                # Dành cho BFS/A* (chỉ có 1 điểm): Vẽ chấm tròn to, không vẽ đường
+                plt.plot(valid_history, label=name, marker='o', markersize=8, linewidth=0)
+            else:
+                # Dành cho Metaheuristic (nhiều điểm): Vẽ đường mượt mà, KHÔNG có chấm
+                plt.plot(valid_history, label=name, linewidth=2)
+                
+            all_values.extend(valid_history)
+            
+    if not all_values:
+        print(f"⚠️ Không có dữ liệu hợp lệ (toàn vô cực) để vẽ biểu đồ cho {title}")
+        plt.close()
+        return
+        
+    plt.title(title, fontsize=14, fontweight='bold')
+    plt.xlabel("Iterations / Updates (Vòng lặp)")
     
-    plt.title(title, fontsize=14)
-    plt.xlabel("Iterations (Vòng lặp)")
-    plt.ylabel("Best Fitness (Log Scale)")
-    
-    # Quan trọng: Dùng thang Logarit để nhìn rõ sự khác biệt
-    # Vì GA thường xuống rất thấp (10^-5) trong khi Hill Climbing kẹt ở mức cao (10^0)
-    plt.yscale('log') 
+    # Tự động chọn thang đo trục Y
+    if min(all_values) > 0:
+        plt.yscale('log')
+        plt.ylabel("Best Fitness (Log Scale)")
+    else:
+        plt.yscale('linear')
+        plt.ylabel("Best Fitness")
     
     plt.grid(True, linestyle='--', alpha=0.7, which="both")
-    plt.legend() # Hiển thị chú thích tên thuật toán
+    plt.legend()
     plt.show()
     
 def plot_empire_map(empires, empire_costs, problem, iteration, title="World Order Map"):

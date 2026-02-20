@@ -79,3 +79,100 @@ class TSP(DiscreteProblem):
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.5)
         plt.show()
+
+    # ==========================================
+# 2. KNAPSACK PROBLEM (CÁI TÚI)
+# ==========================================
+class Knapsack(DiscreteProblem):
+    def __init__(self, n_items=50, capacity=None, seed=42):
+        super().__init__(name=f"Knapsack ({n_items} items)")
+        self.n_items = n_items
+        self.dim = n_items # Số chiều = số món đồ (0 hoặc 1)
+        
+        np.random.seed(seed)
+        # Random trọng lượng (1-10) và giá trị (10-100)
+        self.weights = np.random.randint(1, 15, n_items)
+        self.values = np.random.randint(10, 100, n_items)
+        
+        # Nếu không quy định sức chứa, mặc định là 50% tổng trọng lượng
+        if capacity is None:
+            self.capacity = int(np.sum(self.weights) * 0.5)
+        else:
+            self.capacity = capacity
+
+    def fitness(self, solution):
+        """
+        Input: Binary array [0, 1, 0, 1...] (1 là chọn, 0 là không)
+        Output: -TotalValue (Vì thuật toán tìm Min, nên ta đảo dấu Max Value)
+        """
+        # Làm tròn solution về 0 hoặc 1 (nếu thuật toán continuous chạy thử)
+        selected = np.round(solution).astype(int)
+        
+        total_weight = np.sum(selected * self.weights)
+        total_value = np.sum(selected * self.values)
+        
+        # Xử lý ràng buộc (Constraint Handling)
+        if total_weight > self.capacity:
+            # Nếu rách túi: Phạt bằng cách trả về giá trị dương rất lớn
+            # Penalty = Overweight * 100
+            return 1000 + (total_weight - self.capacity) * 10 
+        
+        # Nếu hợp lệ: Trả về số âm của giá trị (để tìm Min)
+        return -total_value
+
+# ==========================================
+# 3. SHORTEST PATH (GRAPH)
+# ==========================================
+class ShortestPath(DiscreteProblem):
+    def __init__(self, n_nodes=50, edge_prob=0.3, seed=42):
+        super().__init__(name=f"Shortest Path ({n_nodes} nodes)")
+        self.n_nodes = n_nodes
+        self.start_node = 0
+        self.goal_node = n_nodes - 1
+        
+        np.random.seed(seed)
+        # Thêm tọa độ cho đồ thị (để tính Heuristic cho thuật toán A*)
+        self.coords = np.random.rand(n_nodes, 2) * 100
+        
+        # Đảm bảo start và goal cách xa nhau một chút
+        self.coords[self.start_node] = [0, 0]
+        self.coords[self.goal_node] = [100, 100]
+
+        self.adj_matrix = np.zeros((n_nodes, n_nodes))
+        
+        # Tạo cạnh ngẫu nhiên và tính trọng số dựa trên tọa độ thực tế
+        for i in range(n_nodes):
+            for j in range(i + 1, n_nodes):
+                if np.random.rand() < edge_prob:
+                    # Trọng số chính là khoảng cách Euclidean thực tế
+                    dist = np.linalg.norm(self.coords[i] - self.coords[j])
+                    self.adj_matrix[i][j] = dist
+                    self.adj_matrix[j][i] = dist # Đồ thị vô hướng
+
+    def get_neighbors(self, node):
+        """Hàm hỗ trợ cho BFS/A* lấy danh sách hàng xóm"""
+        return np.where(self.adj_matrix[node] > 0)[0]
+
+    def get_cost(self, u, v):
+        """Lấy trọng số cạnh u-v"""
+        return self.adj_matrix[u][v]
+
+    def heuristic(self, node):
+        """
+        Hàm Heuristic dành riêng cho A* Search.
+        Ước lượng khoảng cách đường chim bay (Euclidean) từ node hiện tại tới đích.
+        """
+        return np.linalg.norm(self.coords[node] - self.coords[self.goal_node])
+
+    def fitness(self, path):
+        if len(path) == 0 or path[0] != self.start_node or path[-1] != self.goal_node:
+            return float('inf')
+            
+        cost = 0
+        for i in range(len(path) - 1):
+            u, v = int(path[i]), int(path[i+1])
+            w = self.adj_matrix[u][v]
+            if w == 0: 
+                return float('inf') 
+            cost += w
+        return cost

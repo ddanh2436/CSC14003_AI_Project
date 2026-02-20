@@ -1,7 +1,7 @@
 import numpy as np
 # Import các bài toán
 from problems.continuous import Sphere, Rastrigin, Rosenbrock, Ackley
-from problems.discrete import TSP
+from problems.discrete import TSP, Knapsack, ShortestPath
 
 # Import thuật toán Classical
 from algorithms.classical.hill_climbing import HillClimbing
@@ -118,19 +118,67 @@ def main():
         plot_exploration_exploitation(pso_test.diversity_history, pso_test.history, title="PSO Behavior Analysis")
 
     # ==========================================
-    # SCENARIO 2: BÀI TOÁN RỜI RẠC (TSP)
+    # SCENARIO 2: BÀI TOÁN RỜI RẠC (DISCRETE)
     # ==========================================
-    print("\n" + "="*60)
-    print("SCENARIO 2: DISCRETE OPTIMIZATION (TSP)")
-    print("="*60)
     
-    discrete_problems = [TSP(n_cities=20)]
-    discrete_algos = [
+    # --- 2.1 TRAVELING SALESMAN PROBLEM (TSP) ---
+    print("\n" + "-"*60)
+    print("SCENARIO 2.1: TRAVELING SALESMAN PROBLEM (TSP)")
+    print("-"*60)
+    
+    tsp_problems = [TSP(n_cities=20)]
+    tsp_algos = [
+        # Hill Climbing chuyên dụng cho TSP (Swap mutation)
         {'class': HillClimbingTSP, 'params': {'max_iter': 2000}},
+        # ACO là trùm bài toán này
         {'class': ACO, 'params': {'max_iter': 100, 'n_ants': 20, 'decay': 0.5}}
     ]
+    run_suite(tsp_problems, tsp_algos, n_runs=5)
+
+    # --- 2.2 KNAPSACK PROBLEM (CÁI TÚI) ---
+    print("\n" + "-"*60)
+    print("SCENARIO 2.2: KNAPSACK PROBLEM (0/1 Selection)")
+    print("-"*60)
+    print(">> Note: GA và ABC sẽ tự động 'làm tròn' số thực thành nhị phân (0/1).")
+
+    knapsack_problems = [Knapsack(n_items=50)]
+    knapsack_algos = [
+        # GA xử lý mượt mà chuỗi 0/1
+        {'class': GeneticAlgorithm, 'params': {'max_iter': 500, 'pop_size': 50}}
+    ]
+    run_suite(knapsack_problems, knapsack_algos, n_runs=5)
+
+    # --- 2.3 SHORTEST PATH (GRAPH SEARCH) ---
+    print("\n" + "-"*60)
+    print("SCENARIO 2.3: SHORTEST PATH (Graph Traversal)")
+    print("-"*60)
+    print(">> Note: So sánh giữa 'Mò mẫm' (BFS) và 'Có định hướng' (A*).")
+
+    # Tạo đồ thị 50 đỉnh, xác suất nối cạnh 0.2
+    graph_problems = [ShortestPath(n_nodes=50, edge_prob=0.2)]
     
-    run_suite(discrete_problems, discrete_algos, n_runs=5)
+    graph_algos = [
+        # BFS: Tìm loang, đảm bảo tìm ra đường ngắn nhất (về số cạnh)
+        {'class': BreadthFirstSearch, 'params': {}},
+        # A*: Dùng heuristic để tìm đường đi ngắn nhất nhanh hơn
+        {'class': AStarSearch, 'params': {}}
+    ]
+    # Với thuật toán tất định (Deterministic) như BFS/A*, chỉ cần chạy 1 lần (n_runs=1)
+    run_suite(graph_problems, graph_algos, n_runs=1)
+
+
+    # ==========================================
+    # SCENARIO 3: SCALABILITY ANALYSIS
+    # ==========================================
+    print("\n" + "="*60)
+    print("SCENARIO 3: SCALABILITY ANALYSIS")
+    print("="*60)
+    # Test xem thuật toán nào chạy nhanh hơn khi số chiều tăng lên
+    run_scalability_test(
+        [PSO, GeneticAlgorithm], 
+        Sphere, 
+        dims=[10, 50, 100]
+    )
 
 if __name__ == "__main__":
     main()
