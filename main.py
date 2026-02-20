@@ -83,7 +83,7 @@ def main():
     
     # Chạy thực nghiệm lấy thống kê Robustness (n_runs=10)
     run_suite(continuous_problems, continuous_algos, n_runs=10)
-    
+
     # ==========================================
     # SCENARIO 2: BÀI TOÁN RỜI RẠC (DISCRETE)
     # ==========================================
@@ -136,7 +136,7 @@ def main():
     print("SCENARIO 2.3: SHORTEST PATH (Graph Traversal)")
     print("-"*60)
 
-    graph_problems = [ShortestPath(n_nodes=1000, edge_prob=0.2)]
+    graph_problems = [ShortestPath(n_nodes=2000, edge_prob=0.2)]
     graph_algos = [
         {'class': BreadthFirstSearch, 'params': {}},
         {'class': AStarSearch, 'params': {}}
