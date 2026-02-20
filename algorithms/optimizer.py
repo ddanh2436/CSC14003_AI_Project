@@ -34,12 +34,12 @@ class Optimizer:
         """
         Hàm khung sườn để thực thi thuật toán.
         """
-        start_time = time.time()
+        start_time = time.perf_counter()
         
         # Gọi hàm xử lý chính (các class con sẽ định nghĩa hàm này)
         solution, fitness = self._evolve() 
         
-        end_time = time.time()
+        end_time = time.perf_counter()
         self.run_time = end_time - start_time
         
         return solution, fitness, self.history
