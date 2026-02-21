@@ -5,43 +5,54 @@ import matplotlib.pyplot as plt
 
 def run_experiment(optimizer_class, problem, n_runs=30, **kwargs):
     """
-    Chạy thực nghiệm và in báo cáo dạng rút gọn (One-line summary).
+    Chạy thực nghiệm, đo lường CẢ THỜI GIAN LẪN BỘ NHỚ, và in báo cáo dạng rút gọn.
     """
     fitness_results = []
     time_results = []
+    memory_results = [] # Thêm mảng lưu trữ kết quả đo bộ nhớ
     
-    # In thông báo đang chạy (dùng end="" để không xuống dòng)
     print(f"⏳ Running {optimizer_class.__name__:<16} ({n_runs} runs)... ", end="", flush=True)
     
     for i in range(n_runs):
+        # Bắt đầu theo dõi bộ nhớ cấp phát
+        tracemalloc.start()
+        
         # Khởi tạo và chạy thuật toán
         optimizer = optimizer_class(problem, **kwargs)
         _, best_fitness, _ = optimizer.solve()
         
+        # Lấy lượng RAM đỉnh (Peak Memory) tiêu thụ trong quá trình chạy
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop() # Dừng theo dõi bộ nhớ
+        
+        peak_mb = peak / (1024 * 1024) # Chuyển đổi từ Byte sang Megabyte (MB)
+        
         fitness_results.append(best_fitness)
         time_results.append(optimizer.run_time)
+        memory_results.append(peak_mb)
 
     # Tính toán thống kê
     mean_fit = np.mean(fitness_results)
     std_fit = np.std(fitness_results)
     best_fit = np.min(fitness_results)
     avg_time = np.mean(time_results)
+    avg_mem = np.mean(memory_results) # Tính trung bình lượng RAM tiêu thụ
     
-    # In kết quả dạng ONE-LINE (Gọn gàng)
-    # Ví dụ: ✅ HillClimbing | Fit: 2.50 ± 1.20 | Best: 0.05 | Time: 0.001s
+    # In kết quả dạng ONE-LINE (Đã bổ sung thêm phần Mem)
     print(f"Done!")
-    print(f"   ✅ {optimizer_class.__name__:<16} | Fit: {mean_fit:10.4f} ± {std_fit:.4f} | Best: {best_fit:10.4f} | Time: {avg_time:.4f}s")
+    print(f"   ✅ {optimizer_class.__name__:<16} | Fit: {mean_fit:10.4f} ± {std_fit:.4f} | Best: {best_fit:10.4f} | Time: {avg_time:.4f}s | Mem: {avg_mem:.4f} MB")
     
     return {
         "algorithm": optimizer_class.__name__,
         "mean_fitness": mean_fit,
         "std_fitness": std_fit,
         "best_fitness": best_fit,
-        "avg_time": avg_time
+        "avg_time": avg_time,
+        "avg_memory": avg_mem # Trả về cả dữ liệu bộ nhớ để bạn có thể truy xuất sau này
     }
 
 def measure_memory(optimizer_class, problem, **kwargs):
-    """Đo bộ nhớ RAM tiêu thụ"""
+    """Đo bộ nhớ RAM tiêu thụ cho 1 lần chạy đơn lẻ"""
     tracemalloc.start()
     
     opt = optimizer_class(problem, **kwargs)
