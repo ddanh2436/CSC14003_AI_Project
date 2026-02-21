@@ -33,7 +33,9 @@ class GeneticAlgorithm(Optimizer):
         # Cập nhật kết quả tốt nhất ban đầu
         best_idx = np.argmin(fitness)
         self.update_global_best(pop[best_idx], fitness[best_idx])
-        self.save_history(pop) # Truyền pop để tính chỉ số đa dạng (Diversity)
+        
+        # TỐI ƯU HÓA: Bỏ truyền tham số `pop` để không tính Diversity, giúp tăng tốc tối đa
+        self.save_history() 
 
         # 2. Vòng lặp tiến hóa
         for _ in range(self.max_iter):
@@ -49,7 +51,7 @@ class GeneticAlgorithm(Optimizer):
             parents_shuffled = parents.copy()
             np.random.shuffle(parents_shuffled) # Trộn ngẫu nhiên để lai ghép
             
-            # Mặt nạ lai ghép: Xác suất 50% lấy gen từ bố hoặc mẹ
+            # Mặt nạ lai ghép: Xác suất lấy gen từ bố hoặc mẹ
             cross_mask = np.random.rand(self.pop_size, dim) < 0.5
             perform_cross = np.random.rand(self.pop_size, 1) < self.crossover_rate
             
@@ -87,6 +89,7 @@ class GeneticAlgorithm(Optimizer):
             if fitness[curr_best_idx] < self.global_best_fitness:
                 self.update_global_best(pop[curr_best_idx], fitness[curr_best_idx])
             
-            self.save_history(pop)
+            # TỐI ƯU HÓA: Bỏ truyền tham số `pop` để không tính Diversity
+            self.save_history()
 
         return self.global_best_solution, self.global_best_fitness

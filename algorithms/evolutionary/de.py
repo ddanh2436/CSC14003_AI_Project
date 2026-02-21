@@ -20,9 +20,12 @@ class DifferentialEvolution(Optimizer):
         self.save_history()
 
         for _ in range(self.max_iter):
-            # 2. Đột biến vector hóa
-            idxs = np.array([np.random.choice(np.delete(np.arange(self.pop_size), i), 3, replace=False) 
-                             for i in range(self.pop_size)])
+            # 2. Đột biến (Đã tối ưu hóa, loại bỏ np.delete để tăng tốc)
+            idxs = np.zeros((self.pop_size, 3), dtype=int)
+            for i in range(self.pop_size):
+                candidates = [j for j in range(self.pop_size) if j != i]
+                idxs[i] = np.random.choice(candidates, 3, replace=False)
+                
             a, b, c = pop[idxs[:, 0]], pop[idxs[:, 1]], pop[idxs[:, 2]]
             mutants = np.clip(a + self.F * (b - c), lb, ub)
             
@@ -34,10 +37,10 @@ class DifferentialEvolution(Optimizer):
             trials = np.where(cross_points, mutants, pop)
             trial_fitness = np.apply_along_axis(self.problem.fitness, 1, trials)
             
-            # 4. Chọn lọc vector hóa (Đã sửa lỗi gán mảng NumPy)
+            # 4. Chọn lọc vector hóa
             better_mask = trial_fitness < fitness
             pop[better_mask] = trials[better_mask]
-            fitness[better_mask] = trial_fitness[better_mask] # Đã thêm mặt nạ lọc
+            fitness[better_mask] = trial_fitness[better_mask] 
             
             # Cập nhật Global Best
             min_idx = np.argmin(fitness)

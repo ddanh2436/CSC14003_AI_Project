@@ -21,9 +21,12 @@ class ArtificialBeeColony(Optimizer):
         self.save_history()
 
         for _ in range(self.max_iter):
-            # --- GIAI ĐOẠN EMPLOYED BEES (Vectorized) ---
-            # Chọn k ngẫu nhiên cho mỗi i (k != i)
-            k_indices = np.array([np.random.choice(np.delete(np.arange(self.n_food), i)) for i in range(self.n_food)])
+            # --- GIAI ĐOẠN EMPLOYED BEES (Fully Vectorized) ---
+            # Random k từ 0 đến n_food - 2. Nếu k >= i thì k += 1 để đảm bảo k != i
+            k_indices = np.random.randint(0, self.n_food - 1, self.n_food)
+            mask = k_indices >= np.arange(self.n_food)
+            k_indices[mask] += 1
+            
             phi = np.random.uniform(-1, 1, (self.n_food, dim))
             
             # Tạo ứng viên mới cho toàn bộ quần thể
@@ -37,7 +40,7 @@ class ArtificialBeeColony(Optimizer):
             trials[better_mask] = 0
             trials[~better_mask] += 1
 
-            # --- GIAI ĐOẠN ONLOOKER BEES (Vectorized) ---
+            # --- GIAI ĐOẠN ONLOOKER BEES (Fully Vectorized) ---
             # Tính xác suất dựa trên fitness (càng nhỏ càng tốt)
             fit_inv = 1.0 / (1.0 + fitness + np.abs(np.min(fitness)))
             probs = fit_inv / np.sum(fit_inv)
@@ -45,8 +48,11 @@ class ArtificialBeeColony(Optimizer):
             # Chọn n_food nguồn thức ăn dựa trên xác suất (Onlookers chọn)
             selected_idx = np.random.choice(np.arange(self.n_food), size=self.n_food, p=probs)
             
-            # Lại chọn k ngẫu nhiên cho các nguồn đã chọn
-            k_indices_onlooker = np.array([np.random.choice(np.delete(np.arange(self.n_food), i)) for i in selected_idx])
+            # Tối ưu hóa chọn k_indices_onlooker khác với selected_idx
+            k_indices_onlooker = np.random.randint(0, self.n_food - 1, self.n_food)
+            mask_onlooker = k_indices_onlooker >= selected_idx
+            k_indices_onlooker[mask_onlooker] += 1
+            
             phi_onlooker = np.random.uniform(-1, 1, (self.n_food, dim))
             
             new_pop_on = np.clip(pop[selected_idx] + phi_onlooker * (pop[selected_idx] - pop[k_indices_onlooker]), lb, ub)
