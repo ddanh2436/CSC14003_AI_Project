@@ -3,11 +3,12 @@ from collections import deque
 from algorithms.optimizer import Optimizer
 
 class BreadthFirstSearch(Optimizer):
-    def __init__(self, problem, **kwargs):
+    def __init__(self, problem, visualize=False, pause_time=0.05, **kwargs):
         super().__init__(problem, **kwargs)
+        self.visualize = visualize
+        self.pause_time = pause_time
 
     def _evolve(self):
-        # Ép kiểu chuẩn Python (int) ngay từ đầu để tránh lỗi NumPy
         start = int(self.problem.start_node)
         goal = int(self.problem.goal_node)
 
@@ -20,16 +21,35 @@ class BreadthFirstSearch(Optimizer):
         while queue:
             current = int(queue.popleft())
 
+            # --- GỌI HIỂN THỊ ANIMATION ---
+            if self.visualize:
+                self.problem.visualize_step(
+                    visited=visited, 
+                    frontier=set(queue), 
+                    current=current, 
+                    pause_time=self.pause_time
+                )
+
             if current == goal:
                 path = self._reconstruct_path(came_from, current)
                 fitness = self.problem.fitness(path)
+                
+                # --- VẼ ĐƯỜNG ĐI CUỐI CÙNG ---
+                if self.visualize:
+                    self.problem.visualize_step(
+                        visited=visited, 
+                        frontier=set(queue), 
+                        current=current, 
+                        path=path,
+                        pause_time=self.pause_time
+                    )
                 
                 self.update_global_best(np.array(path), fitness)
                 self.save_history()
                 return self.global_best_solution, self.global_best_fitness
 
             for neighbor in self.problem.get_neighbors(current):
-                neighbor = int(neighbor) # Ép kiểu bảo vệ 
+                neighbor = int(neighbor)
                 if neighbor not in visited:
                     visited.add(neighbor)
                     came_from[neighbor] = current

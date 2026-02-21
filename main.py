@@ -143,6 +143,18 @@ def main():
     ]
     run_suite(graph_problems, graph_algos, n_runs=1)
 
+    print("\n🎬 TRÌNH DIỄN THUẬT TOÁN BFS & A* (ANIMATION)...")
+    # Sử dụng khoảng 70 node để đồ thị không quá rối rắm khi hiển thị
+    viz_graph_prob = ShortestPath(n_nodes=70, edge_prob=0.15)
+    
+    print(">> Đang chạy: A* Search...")
+    astar_viz = AStarSearch(viz_graph_prob, visualize=True, pause_time=0.03)
+    astar_viz.solve()
+    
+    # Bạn có thể đóng cửa sổ A* lại, chương trình sẽ tiếp tục bật animation của BFS
+    print(">> Đang chạy: BFS Search...")
+    bfs_viz = BreadthFirstSearch(viz_graph_prob, visualize=True, pause_time=0.03)
+    bfs_viz.solve()
     # ==========================================
     # SCENARIO 3: SCALABILITY ANALYSIS
     # ==========================================
