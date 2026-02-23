@@ -5,4 +5,24 @@ from .gbf import GreedyBestFirstSearch
 from .hill_climbing import HillClimbing
 from .hill_climbing_tsp import HillClimbingTSP
 from .ucs import UniformCostSearch
+from .simulated_annealing import SimulatedAnnealing
 
+AS = AStarSearch
+BFS = BreadthFirstSearch
+DFS = DepthFirstSearch
+UCS = UniformCostSearch
+GBF = GreedyBestFirstSearch
+HC = HillClimbing
+HCT = HillClimbingTSP
+SA = SimulatedAnnealing
+
+__all__ = [
+    'AStarSearch', 'AS',
+    'BreadthFirstSearch', 'BFS',
+    'DepthFirstSearch', 'DFS',
+    'UniformCostSearch', 'UCS',
+    'GreedyBestFirstSearch', 'GBF',
+    'HillClimbing', 'HC',
+    'HillClimbingTSP', 'HCT',
+    'SimulatedAnnealing' 'SA',
+]

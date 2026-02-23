@@ -11,6 +11,55 @@ class DiscreteProblem:
     def fitness(self, solution):
         raise NotImplementedError
 
+class GraphProblem(DiscreteProblem):
+    """
+    Bài toán tìm đường đi trên đồ thị dành cho các thuật toán cổ điển
+    - adjacency_list: { node: {neighbor: weight} }
+    - heuristic: { node: h_value } (dành cho A* và GBF)
+    """
+    def __init__(self, start_node, goal_node, adjacency_list=None, heuristic=None):
+        self.start_node = start_node
+        self.goal_node = goal_node
+        self.adjacency_list = adjacency_list if adjacency_list else {}
+        self.heuristic = heuristic if heuristic else {}
+    def get_neighbors(self, node):
+        #Trả về các láng giếng của node được chọn
+        return list(self.adjacency_list.get(node, {}).key())
+    def get_cost(self, from_node, to_node):
+        # Trả về giá trị của hàm g(n) (trọng số) từ node này sang node khác
+        return self.adjacency_list.get(from_node, {}).get(to_node, float('inf'))
+    def heuristic(self, node):
+        # Trả về giá trị hàm h(n) từ node đến goal:
+        return self.heuristic.get(node, 0)
+    def fitness(self, path):
+        if not path or path[0] != self.start_node or path[-1] != self.goal_node:
+            return float('inf')
+        
+        total_cost = 0
+        for i in range (len(path) - 1):
+            cost = self.get_cost(path[i], path[i + 1])
+            if cost == float('inf'): return float('inf')
+            total_cost += cost
+        return total_cost
+    def create_sample_graph():
+        """
+        Tạo đồ thị mẫu tương tự ví dụ trong sách giáo khoa (ví dụ: Map of Romania).
+        """
+        adj = {
+            'A': {'B': 2, 'C': 5},
+            'B': {'A': 2, 'D': 2, 'E': 4},
+            'C': {'A': 5, 'G': 10},
+            'D': {'B': 2, 'G': 5},
+            'E': {'B': 4, 'G': 1},
+            'G': {'C': 10, 'D': 5, 'E': 1}
+        }
+        
+        # Giả định Goal là 'G', heuristics là khoảng cách đường chim bay đến G
+        h = {
+            'A': 6, 'B': 5, 'C': 7, 'D': 3, 'E': 1, 'G': 0
+        }
+        
+        return GraphProblem(start_node='A', goal_node='G', adjacency_list=adj, heuristics=h)
 class TSP(DiscreteProblem):
     def __init__(self, n_cities=20, seed=42):
         super().__init__(name=f"TSP ({n_cities} cities)")
