@@ -9,6 +9,9 @@ from algorithms.classical.hill_climbing_tsp import HillClimbingTSP
 from algorithms.classical.hill_climbing_knapsack import HillClimbingKnapsack
 from algorithms.classical.bfs import BreadthFirstSearch
 from algorithms.classical.a_star import AStarSearch
+from algorithms.classical.dfs import DepthFirstSearch
+from algorithms.classical.ucs import UniformCostSearch
+from algorithms.classical.gbf import GreedyBestFirstSearch
 
 # Nhóm Evolutionary
 from algorithms.evolutionary.ga import GeneticAlgorithm
@@ -41,7 +44,7 @@ except ImportError:
     HAS_ADVANCED_TOOLS = False
 
 def main():
-   # ==========================================
+    # ==========================================
     # SCENARIO 0: TRỰC QUAN HÓA ĐỊA HÌNH 3D (2D)
     # ==========================================
     print("\n" + "="*60)
@@ -130,22 +133,41 @@ def main():
         {'class': ABC, 'params': {'max_iter': 500, 'pop_size': 40}}
     ]
     run_suite(knapsack_problems, knapsack_algos, n_runs=5)
-
+   
     # --- 2.3 SHORTEST PATH (GRAPH SEARCH) ---
     print("\n" + "-"*60)
     print("SCENARIO 2.3: SHORTEST PATH (Graph Traversal)")
     print("-"*60)
 
+    # 1. Chạy đánh giá hiệu năng (Benchmark Bar Chart) trên đồ thị lớn
     graph_problems = [ShortestPath(n_nodes=2000, edge_prob=0.2)]
     graph_algos = [
+        {'class': DepthFirstSearch, 'params': {}},
         {'class': BreadthFirstSearch, 'params': {}},
+        {'class': UniformCostSearch, 'params': {}},
+        {'class': GreedyBestFirstSearch, 'params': {}},
         {'class': AStarSearch, 'params': {}}
     ]
     run_suite(graph_problems, graph_algos, n_runs=1)
 
-    print("\n🎬 TRÌNH DIỄN THUẬT TOÁN BFS & A* (ANIMATION)...")
-    # Sử dụng khoảng 70 node để đồ thị không quá rối rắm khi hiển thị
+    # Khởi tạo đồ thị 70 node dùng chung cho cả phần Vẽ tĩnh và Animation
     viz_graph_prob = ShortestPath(n_nodes=70, edge_prob=0.15)
+
+    # 2. Thu thập và vẽ bản đồ so sánh đa luồng (Static Multi-path Plot)
+    print("\n🗺️ Đang vẽ bản đồ tĩnh so sánh lộ trình của 5 thuật toán...")
+    paths_dict = {}
+    for algo_conf in graph_algos:
+        AlgoClass = algo_conf['class']
+        opt = AlgoClass(viz_graph_prob, **algo_conf['params'])
+        best_path, _, _ = opt.solve()
+        if best_path is not None:
+            paths_dict[AlgoClass.__name__] = best_path
+            
+    # Gọi hàm vẽ đè các đường đi (Hàm visualize_paths vừa thêm ở file discrete.py)
+    viz_graph_prob.visualize_paths(paths_dict, title=f"Path Tracing Comparison ({viz_graph_prob.n_nodes} nodes)")
+
+    # 3. Trình diễn Animation (BFS và A*)
+    print("\n🎬 TRÌNH DIỄN THUẬT TOÁN BFS & A* (ANIMATION)...")
     
     print(">> Đang chạy: A* Search...")
     astar_viz = AStarSearch(viz_graph_prob, visualize=True, pause_time=0.03)
@@ -155,6 +177,7 @@ def main():
     print(">> Đang chạy: BFS Search...")
     bfs_viz = BreadthFirstSearch(viz_graph_prob, visualize=True, pause_time=0.03)
     bfs_viz.solve()
+
     # ==========================================
     # SCENARIO 3: SCALABILITY ANALYSIS
     # ==========================================
