@@ -153,6 +153,13 @@ class ShortestPath(DiscreteProblem):
                     dist = np.linalg.norm(self.coords[i] - self.coords[j])
                     self.adj_matrix[i][j] = dist
                     self.adj_matrix[j][i] = dist
+                    
+        # ======================================================
+        # FIX LỖI "ĐƯỜNG BAY THẲNG" (Bổ sung 2 dòng này)
+        # Ép các thuật toán KHÔNG ĐƯỢC đi thẳng từ Start tới Goal
+        # ======================================================
+        self.adj_matrix[self.start_node][self.goal_node] = 0
+        self.adj_matrix[self.goal_node][self.start_node] = 0
 
     def get_neighbors(self, node):
         return np.where(self.adj_matrix[node] > 0)[0]
@@ -175,6 +182,63 @@ class ShortestPath(DiscreteProblem):
                 return float('inf') 
             cost += w
         return cost
+    def visualize_paths(self, paths_dict, title="Shortest Path Comparison (All Algorithms)"):
+        """
+        Vẽ so sánh đường đi của nhiều thuật toán trên cùng một đồ thị.
+        Dùng các nét vẽ khác nhau để chống trùng lặp (Overlap).
+        """
+        import matplotlib.pyplot as plt
+        
+        plt.figure(figsize=(12, 8))
+
+        # 1. Vẽ toàn bộ các cạnh của đồ thị (Mờ và mỏng)
+        for i in range(self.n_nodes):
+            for j in range(i + 1, self.n_nodes):
+                if self.adj_matrix[i][j] > 0:
+                    plt.plot([self.coords[i][0], self.coords[j][0]], 
+                             [self.coords[i][1], self.coords[j][1]], 
+                             color='lightgray', linewidth=0.5, alpha=0.4, zorder=1)
+
+        # 2. Vẽ các đỉnh (Nodes)
+        plt.scatter(self.coords[:, 0], self.coords[:, 1], c='white', edgecolors='gray', s=40, zorder=2)
+
+        # Đánh dấu điểm Bắt đầu (Vuông Xanh) và Kết thúc (Sao Đỏ)
+        plt.scatter(self.coords[self.start_node][0], self.coords[self.start_node][1],
+                    c='green', marker='s', s=150, zorder=10, label='Start')
+        plt.scatter(self.coords[self.goal_node][0], self.coords[self.goal_node][1],
+                    c='red', marker='*', s=250, zorder=10, label='Goal')
+
+        # 3. Cấu hình nét vẽ để chống trùng lặp (Overlap)
+        # Các thuật toán sau sẽ có nét mỏng hơn và khác kiểu để nổi bật trên nền thuật toán trước
+        colors = ['#d62728', '#9467bd', '#2ca02c', '#ff7f0e', '#1f77b4'] # Đỏ, Tím, Xanh lá, Cam, Xanh biển
+        line_styles = ['-', '-', '--', '-.', ':'] 
+        line_widths = [6, 4.5, 3, 2, 1.5] # Độ dày giảm dần
+        alphas = [0.3, 0.5, 0.8, 1.0, 1.0]
+
+        # 4. Vẽ đường đi của từng thuật toán
+        for idx, (algo_name, path) in enumerate(paths_dict.items()):
+            if path is None or len(path) == 0:
+                continue
+
+            path = np.array(path, dtype=int)
+            route_coords = self.coords[path]
+
+            c = colors[idx % len(colors)]
+            ls = line_styles[idx % len(line_styles)]
+            lw = line_widths[idx % len(line_widths)]
+            alpha = alphas[idx % len(alphas)]
+
+            plt.plot(route_coords[:, 0], route_coords[:, 1],
+                     color=c, linestyle=ls, linewidth=lw, alpha=alpha,
+                     zorder=3 + idx, 
+                     label=f"{algo_name} (Cost: {self.fitness(path):.1f})")
+
+        plt.title(title, fontsize=14, fontweight='bold')
+        # Đưa chú thích ra góc ngoài cho đỡ che đồ thị
+        plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0.)
+        plt.grid(True, linestyle='--', alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
     def visualize_step(self, visited, frontier, current=None, path=None, pause_time=0.05):
         """
