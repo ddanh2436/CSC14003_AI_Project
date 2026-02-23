@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import stats  # Thêm thư viện thống kê cho Scenario 4
 
 from problems.continuous import Sphere, Rastrigin, Rosenbrock, Ackley
 from problems.discrete import TSP, Knapsack, ShortestPath
@@ -35,10 +34,11 @@ from utils.experiments import run_suite
 from utils.metrics import run_scalability_test
 from utils.visualization import plot_3d_surface
 
+
 # Thử nghiệm import module phân tích nâng cao
 try:
     from utils.sensitivity import run_parameter_sweep, plot_sensitivity_results
-    from utils.advanced_analysis import plot_exploration_exploitation
+    from utils.advanced_analysis import perform_ttest_numpy, perform_ranksums_numpy, plot_exploration_exploitation
     HAS_ADVANCED_TOOLS = True
 except ImportError:
     HAS_ADVANCED_TOOLS = False
@@ -211,8 +211,8 @@ def main():
     print(f"DE:  {np.mean(de_results):.4f} ± {np.std(de_results):.4f}")
     
     # Thực hiện kiểm định
-    t_stat, p_val_t = stats.ttest_ind(pso_results, de_results)
-    w_stat, p_val_w = stats.ranksums(pso_results, de_results)
+    t_stat, p_val_t = perform_ttest_numpy(pso_results, de_results)
+    w_stat, p_val_w = perform_ranksums_numpy(pso_results, de_results)
     
     print("\n[KIỂM ĐỊNH THỐNG KÊ (Alpha = 0.05)]")
     print(f"1. T-Test P-value: {p_val_t:.4e}")
@@ -224,6 +224,70 @@ def main():
         print(f"=> Nhận định: {better_algo} hoạt động tốt hơn hẳn thuật toán còn lại trên bài toán Rastrigin 10D.")
     else:
         print("=> KẾT LUẬN: P-value >= 0.05. KHÔNG CÓ sự khác biệt rõ rệt về mặt thống kê.")
+
+    # ------------------------------------------
+    # MỞ RỘNG: T-TEST CHO BÀI TOÁN RỜI RẠC
+    # ------------------------------------------
+    print("\n" + "-"*60)
+    print("SCENARIO 4.1: T-TEST FOR TSP (GA vs ACO)")
+    print("-"*60)
+
+    tsp_stats_problem = TSP(n_cities=20)
+
+    print(f"Đang chạy thu thập mẫu cho GA-TSP ({n_runs_stats} lần)...")
+    ga_tsp_results = [
+        GeneticAlgorithmTSP(tsp_stats_problem, max_iter=500, pop_size=50).solve()[1]
+        for _ in range(n_runs_stats)
+    ]
+
+    print(f"Đang chạy thu thập mẫu cho ACO ({n_runs_stats} lần)...")
+    aco_results = [
+        ACO(tsp_stats_problem, max_iter=200, n_ants=20, decay=0.5).solve()[1]
+        for _ in range(n_runs_stats)
+    ]
+
+    t_stat_tsp, p_val_tsp = perform_ttest_numpy(ga_tsp_results, aco_results)
+    print(f"GA-TSP: {np.mean(ga_tsp_results):.4f} ± {np.std(ga_tsp_results):.4f}")
+    print(f"ACO:    {np.mean(aco_results):.4f} ± {np.std(aco_results):.4f}")
+    print(f"T-Test p-value: {p_val_tsp:.4e}")
+    if p_val_tsp < 0.05:
+        better_tsp = "GA-TSP" if np.mean(ga_tsp_results) < np.mean(aco_results) else "ACO"
+        print(f"=> Có khác biệt có ý nghĩa thống kê. Thuật toán tốt hơn: {better_tsp}.")
+    else:
+        print("=> Chưa thấy khác biệt có ý nghĩa thống kê giữa GA-TSP và ACO.")
+
+    print("\n" + "-"*60)
+    print("SCENARIO 4.2: T-TEST FOR KNAPSACK (Hill Climbing vs Simulated Annealing)")
+    print("-"*60)
+
+    knapsack_stats_problem = Knapsack(n_items=50)
+
+    print(f"Đang chạy thu thập mẫu cho HillClimbingKnapsack ({n_runs_stats} lần)...")
+    hc_knapsack_results = [
+        HillClimbingKnapsack(knapsack_stats_problem, max_iter=500).solve()[1]
+        for _ in range(n_runs_stats)
+    ]
+
+    print(f"Đang chạy thu thập mẫu cho SimulatedAnnealingKnapsack ({n_runs_stats} lần)...")
+    sa_knapsack_results = [
+        SimulatedAnnealingKnapsack(knapsack_stats_problem, max_iter=500, initial_temp=1000).solve()[1]
+        for _ in range(n_runs_stats)
+    ]
+
+    # Knapsack fitness trả về giá trị âm (vì framework minimize), nên ta đảo dấu khi hiển thị
+    hc_values = -np.array(hc_knapsack_results)  # Giá trị thực (dương)
+    sa_values = -np.array(sa_knapsack_results)  # Giá trị thực (dương)
+    
+    t_stat_knapsack, p_val_knapsack = perform_ttest_numpy(hc_knapsack_results, sa_knapsack_results)
+    print(f"HC-Knapsack (Giá trị): {np.mean(hc_values):.4f} ± {np.std(hc_values):.4f}")
+    print(f"SA-Knapsack (Giá trị): {np.mean(sa_values):.4f} ± {np.std(sa_values):.4f}")
+    print(f"T-Test p-value: {p_val_knapsack:.4e}")
+    if p_val_knapsack < 0.05:
+        # Đối với Knapsack: Giá trị CAO HƠN = TỐT HƠN (do ta đã đảo dấu)
+        better_knapsack = "HC-Knapsack" if np.mean(hc_values) > np.mean(sa_values) else "SA-Knapsack"
+        print(f"=> Có khác biệt có ý nghĩa thống kê. Thuật toán tốt hơn: {better_knapsack}.")
+    else:
+        print("=> Chưa thấy khác biệt có ý nghĩa thống kê giữa HC và SA trên Knapsack.")
 
     # ==========================================
     # SCENARIO 5: PHÂN TÍCH NÂNG CAO (SENSITIVITY & EXPLORATION)
