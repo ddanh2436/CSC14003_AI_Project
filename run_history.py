@@ -3,6 +3,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
+from matplotlib.widgets import Button # <--- Import thêm Widget Button
 
 # Import các thành phần từ project
 from problems.continuous import Rastrigin 
@@ -26,7 +27,7 @@ def render_fit_screen_frame(empires, empire_costs, problem, year, event_name="",
     x_min, x_max = problem.bounds[0]
     y_min, y_max = problem.bounds[1]
     
-    # Zoom Out (Padding)
+    # Zoom Out
     w = x_max - x_min
     h = y_max - y_min
     pad_x = w * ZOOM_OUT_LEVEL
@@ -71,6 +72,7 @@ def render_fit_screen_frame(empires, empire_costs, problem, year, event_name="",
             txt.set_path_effects([PathEffects.withStroke(linewidth=4, foreground='white')])
 
     # 4. TIÊU ĐỀ
+    # Xóa text cũ trừ text của Button (Button text nằm trong Axes khác nên ko lo)
     for txt in fig.texts:
         txt.set_visible(False)
 
@@ -86,14 +88,29 @@ def render_fit_screen_frame(empires, empire_costs, problem, year, event_name="",
 class HistoryPresenter(WorldHistoryICA):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.is_paused = False # Trạng thái tạm dừng
+        self.is_paused = False
+        self.btn_pause = None # Lưu trữ đối tượng Button
+
+    def toggle_pause(self, event):
+        """Hàm xử lý khi nhấn nút hoặc phím Space"""
+        self.is_paused = not self.is_paused
         
+        # Cập nhật giao diện nút bấm
+        if self.btn_pause:
+            if self.is_paused:
+                self.btn_pause.label.set_text("▶ TIẾP TỤC")
+                self.btn_pause.color = '#4CAF50' # Xanh lá
+                self.btn_pause.hovercolor = '#45a049'
+            else:
+                self.btn_pause.label.set_text("⏸ TẠM DỪNG")
+                self.btn_pause.color = '#f0f0f0' # Trắng xám
+                self.btn_pause.hovercolor = '#e0e0e0'
+        
+        plt.draw() # Vẽ lại nút ngay lập tức
+
     def on_key_press(self, event):
-        """Hàm xử lý sự kiện bàn phím"""
-        if event.key == ' ': # Phím SPACE
-            self.is_paused = not self.is_paused
-            state = "TẠM DỪNG" if self.is_paused else "TIẾP TỤC"
-            print(f"\n[CONTROL] Đã nhấn SPACE -> {state}")
+        if event.key == ' ':
+            self.toggle_pause(None)
 
     def _evolve(self):
         # KHỞI TẠO (Giữ nguyên)
@@ -121,14 +138,24 @@ class HistoryPresenter(WorldHistoryICA):
             empire_colonies.append({'pos': colonies[start_idx:end_idx], 'fit': colonies_fit[start_idx:end_idx]})
             start_idx = end_idx
 
-        print("\n🎥 SẴN SÀNG TRÌNH CHIẾU!")
-        print("   👉 Nhấn phím [SPACE] (Cách) để Tạm dừng / Tiếp tục.")
-        
+        print("\n🎥 ĐANG CHIẾU (CÓ NÚT TẠM DỪNG)...")
         plt.ion() 
+        
         fig = plt.figure(figsize=(16, 9))
+        
+        # Layout: Dành 90% dưới cho bản đồ
         ax = fig.add_axes([0, 0, 1, 0.90])
         
-        # Đăng ký sự kiện bàn phím
+        # --- TẠO NÚT BẤM (BUTTON) ---
+        # Vị trí: [Left, Bottom, Width, Height] (Tính theo tỉ lệ 0-1 của cửa sổ)
+        # Góc trên bên trái, nằm trong vùng Header trắng
+        ax_btn = fig.add_axes([0.01, 0.92, 0.08, 0.05]) 
+        self.btn_pause = Button(ax_btn, '⏸ TẠM DỪNG', color='#f0f0f0', hovercolor='#e0e0e0')
+        self.btn_pause.label.set_fontsize(10)
+        self.btn_pause.label.set_fontweight('bold')
+        self.btn_pause.on_clicked(self.toggle_pause)
+        
+        # Vẫn giữ phím Space cho tiện
         fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         
         try:
@@ -141,23 +168,12 @@ class HistoryPresenter(WorldHistoryICA):
             pass
 
         for t in range(self.max_iter):
-            # --- LOGIC TẠM DỪNG (PAUSE CHECK) ---
-            if self.is_paused:
-                # Hiện chữ TẠM DỪNG
-                pause_txt = fig.text(0.5, 0.5, "⏸ TẠM DỪNG / PAUSED", 
-                                     ha='center', va='center', fontsize=50, 
-                                     color='white', fontweight='bold',
-                                     bbox=dict(boxstyle="round,pad=0.3", fc="black", alpha=0.7))
-                plt.draw()
-                
-                # Vòng lặp chờ cho đến khi nhấn Space lần nữa
-                while self.is_paused:
-                    plt.pause(0.1) # Giữ cửa sổ phản hồi
-                
-                # Xóa chữ Tạm dừng khi tiếp tục
-                pause_txt.remove()
+            # --- LOGIC TẠM DỪNG ---
+            # Nếu đang pause, vòng lặp sẽ kẹt ở đây nhưng vẫn cho phép tương tác GUI
+            while self.is_paused:
+                plt.pause(0.1) 
 
-            # --- TIẾP TỤC LOGIC BÌNH THƯỜNG ---
+            # --- TIẾP TỤC ---
             self.current_year = self._get_current_year(t)
             is_event = False
             event_txt = ""
@@ -180,7 +196,7 @@ class HistoryPresenter(WorldHistoryICA):
                 filename = f"{OUTPUT_DIR}/frame_{t:04d}_Year_{self.current_year}.svg"
                 plt.savefig(filename, format='svg', bbox_inches='tight')
 
-            # Logic ICA (Giữ nguyên)
+            # Logic ICA
             for i in range(self.n_empires):
                 if empires_fit[i] > 1e8 or len(empire_colonies[i]['pos']) == 0: continue
                 vec_diff = empires[i] - empire_colonies[i]['pos']
